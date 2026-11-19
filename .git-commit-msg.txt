@@ -1,7 +1,0 @@
-Ship MapLibre worker as a static asset, not a bundled one
-
-CF Workers Builds rejected the bundle: the ?url-emitted
-maplibre-gl-worker.mjs carried a sourceMappingURL comment pointing at a
-.map file that is not emitted. scripts/copy-worker.mjs (predev/prebuild)
-now copies the worker into static/ with the comment stripped;
-map.ts points MapLibre at /maplibre-gl-worker.mjs.
