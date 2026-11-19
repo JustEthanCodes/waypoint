@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-11-19T12:21:12.622Z",
+  "cities": {
+    "nyc-subway": {
+      "cityId": "nyc-subway",
+      "routes": 29,
+      "stops": 493,
+      "bytes": 77283,
+      "generatedAt": "2026-11-19T12:19:51.092Z"
+    },
+    "boston": {
+      "cityId": "boston",
+      "routes": 371,
+      "stops": 7618,
+      "bytes": 1230451,
+      "generatedAt": "2026-11-19T12:21:12.621Z"
+    }
+  }
+}
