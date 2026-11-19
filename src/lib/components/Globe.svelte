@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Map as MlMap, Marker, NavigationControl } from 'maplibre-gl';
+  import maplibregl from '#lib/map';
+  import type { Map as MlMap } from 'maplibre-gl';
   import { CITIES } from '#lib/cities';
   import { theme, basemapStyle } from '#lib/theme.svelte';
   import type { City } from '#lib/types';
@@ -49,7 +50,7 @@
 
   onMount(() => {
     const style = basemapStyle(theme.resolved);
-    map = new MlMap({
+    map = new maplibregl.Map({
       container,
       style,
       center: [15, 32],
@@ -72,7 +73,7 @@
     map.on('load', applyGlobe);
 
     for (const city of CITIES) {
-      new Marker({ element: pinElement(city), anchor: 'bottom' })
+      new maplibregl.Marker({ element: pinElement(city), anchor: 'bottom' })
         .setLngLat([city.lon, city.lat])
         .addTo(map);
     }

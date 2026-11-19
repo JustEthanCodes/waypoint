@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Map as MlMap, NavigationControl, type GeoJSONSource } from 'maplibre-gl';
+  import maplibregl from '#lib/map';
+  import type { Map as MlMap, GeoJSONSource } from 'maplibre-gl';
   import { LoaderCircle, TriangleExclamationPoint } from '@lucide/svelte';
   import { theme, basemapStyle } from '#lib/theme.svelte';
   import { computeVehicles, registerVehicleIcons } from '#lib/vehicles';
@@ -266,14 +267,14 @@
     (async () => {
       await loadBundle();
       if (disposed || !container) return;
-      map = new MlMap({
+      map = new maplibregl.Map({
         container,
         style: basemapStyle(theme.resolved),
         center: [city.lon, city.lat],
         zoom: 11,
         attributionControl: { compact: true }
       });
-      map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
       map.on('style.load', () => {
         addWaypointLayers();
         startVehicleLoop();
