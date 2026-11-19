@@ -10,3 +10,4 @@ build
 references/
 etl-cache/
 .wrangler/
+static/maplibre-gl-worker.mjs

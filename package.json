@@ -11,7 +11,9 @@
     "node": ">=20"
   },
   "scripts": {
+    "predev": "node scripts/copy-worker.mjs",
     "dev": "vite dev",
+    "prebuild": "node scripts/copy-worker.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
