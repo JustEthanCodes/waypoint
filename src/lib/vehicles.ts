@@ -77,16 +77,6 @@ export const MODE_TO_ICON: Record<string, string> = {
   cable: 'veh-cable'
 };
 
-/** Halo (outline) colour per mode — trains get a black ring as requested. */
-export const MODE_HALO: Record<string, string> = {
-  metro: 'rgba(255,255,255,0.9)',
-  rail: '#000000',
-  tram: 'rgba(255,255,255,0.9)',
-  bus: 'rgba(255,255,255,0.9)',
-  ferry: 'rgba(255,255,255,0.9)',
-  cable: 'rgba(255,255,255,0.9)'
-};
-
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
@@ -118,7 +108,7 @@ export function registerVehicleIcons(map: MlMap) {
 export interface VehicleFeature {
   type: 'Feature';
   geometry: { type: 'Point'; coordinates: [number, number] };
-  properties: { id: string; mode: string; color: string; bearing: number; icon: string; route: string; routeId: string; halo: string };
+  properties: { id: string; mode: string; color: string; bearing: number; icon: string; route: string; routeId: string };
 }
 
 export interface VehicleCollection {
@@ -166,8 +156,7 @@ export function computeVehicles(routes: RouteGeometry[], nowSeconds: number): Ve
           bearing,
           icon: MODE_TO_ICON[route.mode] ?? 'veh-bus',
           route: route.shortName,
-          routeId: route.id,
-          halo: MODE_HALO[route.mode] ?? 'rgba(255,255,255,0.9)'
+          routeId: route.id
         }
       });
     }

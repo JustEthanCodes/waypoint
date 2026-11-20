@@ -62,7 +62,8 @@
       interchangeFill: dark ? '#121517' : '#fbf9f1',
       interchangeStroke: dark ? '#ece9df' : '#1a1c1e',
       label: dark ? '#d8d5c9' : '#33352f',
-      labelHalo: dark ? '#121517' : '#f7f5ec'
+      labelHalo: dark ? '#121517' : '#f7f5ec',
+      vehicleHalo: dark ? '#ffffff' : '#000000'
     };
   });
 
@@ -283,7 +284,7 @@
         source: 'wp-vehicles',
         layout: {
           'icon-image': ['get', 'icon'],
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.4, 12, 0.6, 16, 0.85],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.2, 12, 0.3, 16, 0.425],
           'icon-rotate': ['get', 'bearing'],
           'icon-rotation-alignment': 'map',
           'icon-pitch-alignment': 'map',
@@ -292,8 +293,8 @@
         },
         paint: {
           'icon-color': ['get', 'color'],
-          'icon-halo-color': ['get', 'halo'],
-          'icon-halo-width': 1.5,
+          'icon-halo-color': palette.vehicleHalo,
+          'icon-halo-width': 2.0,
           'icon-opacity': 0.97
         }
       });
