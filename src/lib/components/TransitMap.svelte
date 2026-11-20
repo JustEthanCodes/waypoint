@@ -23,9 +23,31 @@
   let map: MlMap | undefined;
   let bundle = $state<CityBundle | null>(null);
   let loadError = $state<string | null>(null);
-  let vehicleTimer: ReturnType<typeof setInterval> | undefined;
   let styleReady = $state(false);
+  let vehicleRaf = 0;
+  let lastVehicleUpdate = 0;
 
+  function tickVehicles() {
+    if (!map || !bundle || document.hidden) {
+      vehicleRaf = requestAnimationFrame(tickVehicles);
+      return;
+    }
+    const now = performance.now();
+    if (now - lastVehicleUpdate >= 80) { // ~12fps — smooth without excessive CPU
+      lastVehicleUpdate = now;
+      const src = map.getSource('wp-vehicles') as GeoJSONSource | undefined;
+      if (src) {
+        src.setData(computeVehicles(bundle.routes, now / 1000) as any);
+      }
+    }
+    vehicleRaf = requestAnimationFrame(tickVehicles);
+  }
+
+  function startVehicleLoop() {
+    cancelAnimationFrame(vehicleRaf);
+    lastVehicleUpdate = 0;
+    vehicleRaf = requestAnimationFrame(tickVehicles);
+  }
   const MODES_ALL: ModeGroup[] = ['metro', 'rail', 'tram', 'bus', 'ferry', 'cable'];
   const selectedModes = $derived(modeFilter === 'all' ? MODES_ALL : [modeFilter as ModeGroup]);
 
@@ -284,7 +306,7 @@
         source: 'wp-vehicles',
         layout: {
           'icon-image': ['get', 'icon'],
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.2, 12, 0.3, 16, 0.425],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.1, 12, 0.15, 16, 0.2125],
           'icon-rotate': ['get', 'bearing'],
           'icon-rotation-alignment': 'map',
           'icon-pitch-alignment': 'map',
@@ -294,7 +316,7 @@
         paint: {
           'icon-color': ['get', 'color'],
           'icon-halo-color': palette.vehicleHalo,
-          'icon-halo-width': 2.0,
+          'icon-halo-width': 2.5,
           'icon-opacity': 0.97
         }
       });
@@ -322,20 +344,6 @@
           : ['in', ['get', 'mode'], ['literal', selectedModes]]
       );
     }
-  }
-
-  function tickVehicles() {
-    if (!map || !bundle || document.hidden) return;
-    const src = map.getSource('wp-vehicles') as GeoJSONSource | undefined;
-    if (!src) return;
-    const nowSec = Date.now() / 1000;
-    src.setData(computeVehicles(bundle.routes, nowSec) as any);
-  }
-
-  function startVehicleLoop() {
-    clearInterval(vehicleTimer);
-    tickVehicles();
-    vehicleTimer = setInterval(tickVehicles, 300);
   }
 
   onMount(() => {
@@ -391,7 +399,7 @@
 
     return () => {
       disposed = true;
-      clearInterval(vehicleTimer);
+      cancelAnimationFrame(vehicleRaf);
       map?.remove();
       map = undefined;
     };

@@ -4,59 +4,90 @@
  * not live GPS — labelled as such in the UI.
  *
  * Glyphs are simple geometric shapes so each mode is instantly distinct
- * at small sizes: metro = rounded square, rail = circle, tram = diamond,
- * bus = rectangle, ferry = oval, cable = small circle.
+ * at small sizes. Each shape is directional (clear front point) so the
+ * icon-rotate bearing visibly shows travel direction:
+ *   metro = rounded square with flat front edge
+ *   rail  = teardrop (circle with pointed nose)
+ *   tram  = diamond with sharpened top point
+ *   bus   = trapezoid (wider at front)
+ *   ferry = oval with pointed bow
+ *   cable = small circle with arrow
  */
 import type { Map as MlMap } from 'maplibre-gl';
 import { MODE_SPEED, pointAtDistance, polylineLength, routePhase } from './geo';
 import type { RouteGeometry } from './types';
 
-const ICON_SIZE = 64;
+const ICON_SIZE = 128;
 
 type IconPainter = (ctx: CanvasRenderingContext2D) => void;
 
 function paintMetro(ctx: CanvasRenderingContext2D) {
-  // Rounded square — distinct from bus's sharp rectangle
+  // Rounded square with a flat front edge — reads as "boxy car moving forward"
   ctx.fillStyle = '#fff';
-  roundRect(ctx, 12, 12, 40, 40, 8); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(16, 4); ctx.lineTo(48, 4);          // flat front
+  ctx.arcTo(52, 4, 52, 8, 4); ctx.lineTo(52, 56);
+  ctx.arcTo(52, 60, 48, 60, 4); ctx.lineTo(16, 60);
+  ctx.arcTo(12, 60, 12, 56, 4); ctx.lineTo(12, 8);
+  ctx.arcTo(12, 4, 16, 4, 4);
+  ctx.closePath(); ctx.fill();
 }
 
 function paintRail(ctx: CanvasRenderingContext2D) {
-  // Circle — filled with the line colour, black outline via halo
+  // Teardrop — circle with a pointed nose at the front (direction of travel)
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.arc(32, 32, 26, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(32, 0);                              // pointed nose (front)
+  ctx.lineTo(54, 22); ctx.arc(32, 36, 22, Math.PI / 4, Math.PI * 0.75 + Math.PI / 4, true);
+  // simpler: circle body + triangle nose
+  ctx.closePath(); ctx.fill();
+  // Redraw cleanly as circle + triangle
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(32, 38, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(32, 2); ctx.lineTo(46, 24); ctx.lineTo(18, 24);
+  ctx.closePath(); ctx.fill();
 }
 
 function paintTram(ctx: CanvasRenderingContext2D) {
-  // 45° rotated square (diamond)
+  // Diamond with sharpened top point — reads as "tram"
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.moveTo(32, 4); ctx.lineTo(60, 32); ctx.lineTo(32, 60); ctx.lineTo(4, 32);
+  ctx.moveTo(32, 0); ctx.lineTo(62, 32); ctx.lineTo(32, 60); ctx.lineTo(2, 32);
   ctx.closePath(); ctx.fill();
 }
 
 function paintBus(ctx: CanvasRenderingContext2D) {
-  // Sharp rectangle
+  // Trapezoid — wider at front (top), narrower at back — reads as "bus"
   ctx.fillStyle = '#fff';
-  ctx.fillRect(10, 14, 44, 36);
+  ctx.beginPath();
+  ctx.moveTo(10, 0); ctx.lineTo(54, 0);           // wide front
+  ctx.lineTo(50, 64); ctx.lineTo(14, 64);         // narrower back
+  ctx.closePath(); ctx.fill();
 }
 
 function paintFerry(ctx: CanvasRenderingContext2D) {
-  // Oval
+  // Oval with pointed bow at the front
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.ellipse(32, 32, 28, 16, 0, 0, Math.PI * 2);
+  ctx.moveTo(32, 0); ctx.lineTo(44, 18);
+  ctx.ellipse(32, 36, 24, 20, 0, 0, Math.PI * 2);
   ctx.fill();
+  // pointed bow
+  ctx.beginPath();
+  ctx.moveTo(32, 0); ctx.lineTo(40, 16); ctx.lineTo(24, 16);
+  ctx.closePath(); ctx.fill();
 }
 
 function paintCable(ctx: CanvasRenderingContext2D) {
-  // Small circle
+  // Small circle with an arrow on top
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.arc(32, 32, 14, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(32, 36, 14, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(32, 4); ctx.lineTo(40, 18); ctx.lineTo(24, 18);
+  ctx.closePath(); ctx.fill();
 }
 
 export const VEHICLE_ICONS: Record<string, IconPainter> = {
@@ -80,14 +111,6 @@ export const MODE_TO_ICON: Record<string, string> = {
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
-}
-
-function cut(ctx: CanvasRenderingContext2D, draw: () => void) {
-  ctx.save();
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.fillStyle = '#000';
-  draw();
-  ctx.restore();
 }
 
 /** Register the SDF glyphs with the map (call once per style load). */
