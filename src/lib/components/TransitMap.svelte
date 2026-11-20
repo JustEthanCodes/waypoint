@@ -124,7 +124,21 @@
       map.addSource('wp-vehicles', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     }
 
-    // Routes — casing then colored core
+    // Routes — outer shadow (depth + separation for overlapping lines), then casing, then colored core
+    if (!map.getLayer('wp-routes-shadow')) {
+      map.addLayer({
+        id: 'wp-routes-shadow',
+        type: 'line',
+        source: 'wp-routes',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': palette.casing === '#ffffff' ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.45)',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 6.0, 13, 9.0, 16, 12.0],
+          'line-blur': ['interpolate', ['linear'], ['zoom'], 9, 2.5, 16, 4.0],
+          'line-opacity': lineOpacity(0.5)
+        }
+      }, 'wp-routes-casing');
+    }
     if (!map.getLayer('wp-routes-casing')) {
       map.addLayer({
         id: 'wp-routes-casing',
@@ -133,8 +147,8 @@
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': palette.casing,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4.4, 13, 6.4, 16, 8.6],
-          'line-opacity': lineOpacity(0.92)
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3.6, 13, 5.6, 16, 7.6],
+          'line-opacity': lineOpacity(0.95)
         }
       });
     }
@@ -146,8 +160,8 @@
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ['get', 'color'],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.9, 13, 3.4, 16, 4.6],
-          'line-opacity': lineOpacity(0.96)
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.6, 13, 2.6, 16, 3.6],
+          'line-opacity': lineOpacity(0.98)
         }
       });
     }
@@ -296,6 +310,7 @@
 
   function applyModeVisibility() {
     if (!map || !styleReady) return;
+    map.setPaintProperty('wp-routes-shadow', 'line-opacity', lineOpacity(0.5));
     map.setPaintProperty('wp-routes-casing', 'line-opacity', lineOpacity(0.92, 0));
     map.setPaintProperty('wp-routes-core', 'line-opacity', lineOpacity(0.96, 0));
     if (map.getLayer('wp-vehicles')) {
