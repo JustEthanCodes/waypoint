@@ -44,6 +44,7 @@
             <tr class="border-t border-[var(--line)]"><td class="py-1.5">Oslo</td><td><a class="underline" href="https://developer.entur.no/open-data/timetable" target="_blank" rel="noreferrer">Entur national GTFS (region-filtered)</a></td><td>NLOD</td></tr>
             <tr class="border-t border-[var(--line)]"><td class="py-1.5">Stockholm</td><td><a class="underline" href="https://eu.data.public-transport.earth/" target="_blank" rel="noreferrer">Trafiklab national GTFS (mirror, region-filtered)</a></td><td>CC0 1.0</td></tr>
             <tr class="border-t border-[var(--line)]"><td class="py-1.5">Copenhagen</td><td><a class="underline" href="https://eu.data.public-transport.earth/" target="_blank" rel="noreferrer">Rejseplanen / DOT national GTFS (mirror, region-filtered)</a></td><td>See source</td></tr>
+            <tr class="border-t border-[var(--line)]"><td class="py-1.5">London</td><td><a class="underline" href="https://planarnetwork.github.io/gb-transit/feeds" target="_blank" rel="noreferrer">planarnetwork/gb-transit (National Rail + TfL, region-filtered)</a></td><td>UK Open Government Licence</td></tr>
           </tbody>
         </table>
         <p class="mt-2 text-[0.75rem] text-[var(--muted)]">More cities join as their feeds pass validation — see the globe for the live roster. Feed data remains the property of its publishers.</p>

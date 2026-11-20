@@ -117,7 +117,7 @@ See `.env.example`. Everything is optional:
 New York City (MTA Subway) · Boston (MBTA) · Berlin (VBB, region-filtered) ·
 Oslo (Entur national, region-filtered) · Stockholm (Trafiklab national,
 region-filtered, geometry derived from stop sequences) · Copenhagen (DOT
-national, region-filtered).
+national, region-filtered) · London (National Rail + TfL, region-filtered).
 
 More cities are added by enabling their GTFS feed in
 `scripts/feeds.config.mjs` and running the nightly ETL — London, Paris and

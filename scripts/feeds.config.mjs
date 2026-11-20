@@ -66,14 +66,17 @@ export const FEEDS = [
   // ── Feeds requiring free registration (set env var, flip enabled: true) ──
   {
     cityId: 'london',
-    name: 'Greater London (TfL)',
-    gtfsUrl: null, // TfL does not publish a single all-modes GTFS zip; use Transitous region list / BoDS for buses
-    license: 'Open Government Licence v3',
-    attribution: 'Transport for London',
-    sourceUrl: 'https://tfl.gov.uk/info-for/open-data-users/',
-    enabled: false,
-    note: 'TfL publishes mode-specific datasets; wire via Transitous region config or BoDS bus feed.'
-  }
+    name: 'London (National Rail + TfL, mirror)',
+    gtfsUrl: 'https://github.com/planarnetwork/gb-transit/releases/latest/download/gtfs-rail-and-tfl.zip',
+    license: 'UK Open Government Licence (National Rail + TfL open data)',
+    attribution: 'planarnetwork/gb-transit (National Rail + TfL, region-filtered to Greater London)',
+    sourceUrl: 'https://planarnetwork.github.io/gb-transit/feeds',
+    bbox: { minLat: 51.25, maxLat: 51.72, minLng: -0.6, maxLng: 0.45 },
+    // Skip replacement buses; keep only routes whose representative shape
+    // stays mostly inside London (drops intercity services passing through)
+    dropRouteTypes: [714],
+    routeBboxFilter: { minShare: 0.25, maxKm: 60 }
+  },
 ];
 
 export const DEFAULT_HEADWAY_MIN = { metro: 6, rail: 15, tram: 8, bus: 12, ferry: 30, cable: 10 };

@@ -26,6 +26,8 @@ import { simplifyShape } from './simplify.mjs';
 import { readZipText, extractZipEntry, entryExists } from './zipstream.mjs';
 import { fileURLToPath } from 'node:url';
 
+const inBBox = (bbox, lat, lon) =>
+  !bbox || (lat >= bbox.minLat && lat <= bbox.maxLat && lon >= bbox.minLng && lon <= bbox.maxLng);
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CACHE_DIR = path.join(ROOT, 'etl-cache');
 const OUT_DIR = path.join(ROOT, 'static', 'data');
@@ -161,8 +163,20 @@ async function shapesFromStopSequences(zipPath, tripToRoute, regionalRoutes, sto
   return shapePts;
 }
 
-const inBBox = (bbox, lat, lon) =>
-  !bbox || (lat >= bbox.minLat && lat <= bbox.maxLat && lon >= bbox.minLng && lon <= bbox.maxLng);
+const haversineLength = (pts) => {
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [lng1, lat1] = pts[i - 1];
+    const [lng2, lat2] = pts[i];
+    const R = 6371000;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    total += 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+  }
+  return total;
+};
 
 async function buildFeed(feed) {
   console.log(`\n▸ ${feed.name} (${feed.cityId})`);
@@ -193,13 +207,15 @@ async function buildFeed(feed) {
       : /^[0-9a-fA-F]{6}$/.test(r.route_color ?? '')
         ? `#${r.route_color}`
         : hashColor(r.route_id);
+    if (feed.dropRouteTypes?.includes(Number(r.route_type))) continue;
     routes.set(r.route_id, {
       id: r.route_id,
       shortName: (r.route_short_name || r.route_long_name || r.route_id).trim(),
       longName: (r.route_long_name || '').trim(),
       mode,
       color,
-      headwayMin: DEFAULT_HEADWAY_MIN[mode]
+      headwayMin: DEFAULT_HEADWAY_MIN[mode],
+      routeType: Number(r.route_type)
     });
   }
 
@@ -326,6 +342,12 @@ async function buildFeed(feed) {
     if (!best || best.length < 2) continue;
     const simplified = simplifyShape(best.map(([lng, lat]) => [lng, lat]), 22, 400);
     if (simplified.length < 2) continue;
+    if (bbox && feed.routeBboxFilter && best.length >= 2) {
+      const totalLen = haversineLength(best);
+      const inCount = best.filter(([lng, lat]) => inBBox(bbox, lat, lng)).length;
+      const share = inCount / best.length;
+      if (totalLen > feed.routeBboxFilter.maxKm * 1000 && share < feed.routeBboxFilter.minShare) continue;
+    }
     outRoutes.push({ ...route, shape: simplified });
   }
   outRoutes.sort((a, b) => modeRank(a.mode) - modeRank(b.mode) || a.shortName.localeCompare(b.shortName));

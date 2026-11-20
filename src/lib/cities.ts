@@ -15,7 +15,7 @@ export const CITIES: City[] = [
   { id: 'stockholm', name: 'Stockholm', country: 'Sweden', countryCode: 'SE', lat: 59.3293, lon: 18.0686, timezone: 'Europe/Stockholm', status: 'live', modes: 'Metro · Commuter Rail · Tram · Bus' },
   { id: 'copenhagen', name: 'Copenhagen', country: 'Denmark', countryCode: 'DK', lat: 55.6761, lon: 12.5683, timezone: 'Europe/Copenhagen', status: 'live', modes: 'Metro · S-train · Regional rail · Bus' },
 
-  { id: 'london', name: 'London', country: 'United Kingdom', countryCode: 'GB', lat: 51.5072, lon: -0.1276, timezone: 'Europe/London', status: 'planned', modes: 'Underground · Overground · Bus · National Rail' },
+  { id: 'london', name: 'London', country: 'United Kingdom', countryCode: 'GB', lat: 51.5072, lon: -0.1276, timezone: 'Europe/London', status: 'live', modes: 'Underground · Overground · DLR · Elizabeth line · National Rail' },
   { id: 'paris', name: 'Paris', country: 'France', countryCode: 'FR', lat: 48.8566, lon: 2.3522, timezone: 'Europe/Paris', status: 'planned', modes: 'Métro · RER · Tram · Bus' },
   { id: 'sydney', name: 'Sydney', country: 'Australia', countryCode: 'AU', lat: -33.8688, lon: 151.2093, timezone: 'Australia/Sydney', status: 'planned', modes: 'Metro · Train · Light Rail · Ferry · Bus' },
   { id: 'melbourne', name: 'Melbourne', country: 'Australia', countryCode: 'AU', lat: -37.8136, lon: 144.9631, timezone: 'Australia/Melbourne', status: 'planned', modes: 'Metro · Tram · Bus' },
