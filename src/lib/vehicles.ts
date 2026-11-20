@@ -21,38 +21,46 @@ function paintBus(ctx: CanvasRenderingContext2D) {
 }
 
 function paintMetro(ctx: CanvasRenderingContext2D) {
+  // Boxy car: flat top, squared ends, wide windshield band — reads as "metro car"
   ctx.fillStyle = '#fff';
-  roundRect(ctx, 15, 3, 34, 58, 15); ctx.fill();
+  roundRect(ctx, 14, 2, 36, 60, 6); ctx.fill();
   cut(ctx, () => {
-    roundRect(ctx, 20, 9, 24, 9, 4); ctx.fill();    // nose window band
-    roundRect(ctx, 20, 48, 24, 4, 2); ctx.fill();   // cab door slit
-    roundRect(ctx, 13, 22, 4, 12, 2); ctx.fill();   // left door notch
-    roundRect(ctx, 47, 22, 4, 12, 2); ctx.fill();   // right door notch
+    roundRect(ctx, 18, 7, 28, 7, 3); ctx.fill();    // wide windshield band
+    roundRect(ctx, 18, 20, 28, 3, 1); ctx.fill();   // door stripe
+    roundRect(ctx, 18, 34, 28, 3, 1); ctx.fill();   // door stripe
+    roundRect(ctx, 18, 48, 28, 4, 2); ctx.fill();   // rear window
   });
 }
 
 function paintRail(ctx: CanvasRenderingContext2D) {
+  // Elongated with a pronounced tapered nose — reads as "train"
   ctx.fillStyle = '#fff';
-  // sloped nose both ends
   ctx.beginPath();
-  ctx.moveTo(17, 6); ctx.lineTo(47, 6); ctx.lineTo(51, 54); ctx.lineTo(47, 60);
-  ctx.lineTo(17, 60); ctx.lineTo(13, 54); ctx.closePath(); ctx.fill();
+  ctx.moveTo(32, 1); ctx.lineTo(46, 16); ctx.lineTo(46, 58);
+  ctx.lineTo(42, 62); ctx.lineTo(22, 62); ctx.lineTo(18, 58);
+  ctx.lineTo(18, 16); ctx.closePath(); ctx.fill();
   cut(ctx, () => {
-    roundRect(ctx, 21, 10, 22, 5, 2); ctx.fill();
-    roundRect(ctx, 21, 50, 22, 5, 2); ctx.fill();
-    roundRect(ctx, 28, 26, 8, 14, 2); ctx.fill();   // roof blister
+    roundRect(ctx, 24, 18, 16, 5, 2); ctx.fill();   // nose window
+    roundRect(ctx, 22, 30, 20, 4, 2); ctx.fill();   // side window 1
+    roundRect(ctx, 22, 40, 20, 4, 2); ctx.fill();   // side window 2
+    roundRect(ctx, 22, 52, 20, 4, 2); ctx.fill();   // rear window
   });
 }
 
 function paintTram(ctx: CanvasRenderingContext2D) {
+  // Narrower body + prominent diamond pantograph on top — reads as "tram"
   ctx.fillStyle = '#fff';
-  roundRect(ctx, 18, 5, 28, 54, 10); ctx.fill();
+  roundRect(ctx, 20, 8, 24, 50, 9); ctx.fill();
   cut(ctx, () => {
-    roundRect(ctx, 23, 11, 18, 6, 3); ctx.fill();   // windshield
-    ctx.beginPath();                                 // pantograph diamond
-    ctx.moveTo(32, 26); ctx.lineTo(40, 33); ctx.lineTo(32, 40); ctx.lineTo(24, 33);
-    ctx.closePath(); ctx.fill();
+    roundRect(ctx, 24, 14, 16, 6, 3); ctx.fill();   // windshield
+    roundRect(ctx, 24, 44, 16, 5, 2); ctx.fill();   // rear window
   });
+  // Pantograph arm + diamond drawn on top (solid, no cutout into body)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(29, 0, 6, 9);
+  ctx.beginPath();
+  ctx.moveTo(32, 0); ctx.lineTo(38, 5); ctx.lineTo(32, 10); ctx.lineTo(26, 5);
+  ctx.closePath(); ctx.fill();
 }
 
 function paintFerry(ctx: CanvasRenderingContext2D) {
