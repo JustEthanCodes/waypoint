@@ -114,12 +114,16 @@ See `.env.example`. Everything is optional:
 
 ## Bundled cities (map geometry in repo)
 
-New York City (MTA Subway — 29 routes, 493 stops) and Boston (MBTA —
-371 routes: metro, light rail, commuter rail, 341 bus routes, 8 ferries,
-7,618 stops). More cities are added by enabling their GTFS feed in
-`scripts/feeds.config.mjs` and running the nightly ETL — London, Stockholm and
-Oslo are scaffolded (Stockholm/Oslo need a free Trafiklab key; London needs its
-BoDS bus feed or a TfL mode-specific extract).
+New York City (MTA Subway) · Boston (MBTA) · Berlin (VBB, region-filtered) ·
+Oslo (Entur national, region-filtered) · Stockholm (Trafiklab national,
+region-filtered, geometry derived from stop sequences) · Copenhagen (DOT
+national, region-filtered).
+
+More cities are added by enabling their GTFS feed in
+`scripts/feeds.config.mjs` and running the nightly ETL — London, Paris and
+Sydney are scaffolded but need free API keys from their operators' open-data
+portals. Norway-class national feeds are automatically narrowed to the
+region's stops/routes via an optional `bbox` in the feed config.
 
 ## Honest limitations / roadmap
 

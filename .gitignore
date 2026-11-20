@@ -11,3 +11,4 @@ references/
 etl-cache/
 .wrangler/
 static/maplibre-gl-worker.mjs
+.git-commit-msg.txt

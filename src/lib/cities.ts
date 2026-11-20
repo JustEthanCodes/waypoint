@@ -10,13 +10,13 @@ import type { City } from './types';
 export const CITIES: City[] = [
   { id: 'nyc-subway', name: 'New York City', country: 'United States', countryCode: 'US', lat: 40.73, lon: -73.99, timezone: 'America/New_York', status: 'live', modes: 'Subway · Bus · LIRR' },
   { id: 'boston', name: 'Boston', country: 'United States', countryCode: 'US', lat: 42.36, lon: -71.06, timezone: 'America/New_York', status: 'live', modes: 'Subway · Commuter Rail · Bus · Ferry' },
+  { id: 'berlin', name: 'Berlin', country: 'Germany', countryCode: 'DE', lat: 52.52, lon: 13.405, timezone: 'Europe/Berlin', status: 'live', modes: 'U-Bahn · S-Bahn · Tram · Bus · Regional rail' },
+  { id: 'oslo', name: 'Oslo', country: 'Norway', countryCode: 'NO', lat: 59.9139, lon: 10.7522, timezone: 'Europe/Oslo', status: 'live', modes: 'Metro · Tram · Bus · National rail' },
+  { id: 'stockholm', name: 'Stockholm', country: 'Sweden', countryCode: 'SE', lat: 59.3293, lon: 18.0686, timezone: 'Europe/Stockholm', status: 'live', modes: 'Metro · Commuter Rail · Tram · Bus' },
+  { id: 'copenhagen', name: 'Copenhagen', country: 'Denmark', countryCode: 'DK', lat: 55.6761, lon: 12.5683, timezone: 'Europe/Copenhagen', status: 'live', modes: 'Metro · S-train · Regional rail · Bus' },
 
   { id: 'london', name: 'London', country: 'United Kingdom', countryCode: 'GB', lat: 51.5072, lon: -0.1276, timezone: 'Europe/London', status: 'planned', modes: 'Underground · Overground · Bus · National Rail' },
-  { id: 'stockholm', name: 'Stockholm', country: 'Sweden', countryCode: 'SE', lat: 59.3293, lon: 18.0686, timezone: 'Europe/Stockholm', status: 'planned', modes: 'Metro · Commuter Rail · Tram · Bus' },
-  { id: 'oslo', name: 'Oslo', country: 'Norway', countryCode: 'NO', lat: 59.9139, lon: 10.7522, timezone: 'Europe/Oslo', status: 'planned', modes: 'Metro · Tram · Bus · National rail' },
   { id: 'paris', name: 'Paris', country: 'France', countryCode: 'FR', lat: 48.8566, lon: 2.3522, timezone: 'Europe/Paris', status: 'planned', modes: 'Métro · RER · Tram · Bus' },
-  { id: 'berlin', name: 'Berlin', country: 'Germany', countryCode: 'DE', lat: 52.52, lon: 13.405, timezone: 'Europe/Berlin', status: 'planned', modes: 'U-Bahn · S-Bahn · Tram · Bus' },
-  { id: 'copenhagen', name: 'Copenhagen', country: 'Denmark', countryCode: 'DK', lat: 55.6761, lon: 12.5683, timezone: 'Europe/Copenhagen', status: 'planned', modes: 'Metro · S-train · Bus · Harbour bus' },
   { id: 'sydney', name: 'Sydney', country: 'Australia', countryCode: 'AU', lat: -33.8688, lon: 151.2093, timezone: 'Australia/Sydney', status: 'planned', modes: 'Metro · Train · Light Rail · Ferry · Bus' },
   { id: 'melbourne', name: 'Melbourne', country: 'Australia', countryCode: 'AU', lat: -37.8136, lon: 144.9631, timezone: 'Australia/Melbourne', status: 'planned', modes: 'Metro · Tram · Bus' },
   { id: 'milan', name: 'Milan', country: 'Italy', countryCode: 'IT', lat: 45.4642, lon: 9.19, timezone: 'Europe/Rome', status: 'planned', modes: 'Metro · Tram · Bus' },

@@ -122,7 +122,7 @@ export function registerVehicleIcons(map: MlMap) {
 export interface VehicleFeature {
   type: 'Feature';
   geometry: { type: 'Point'; coordinates: [number, number] };
-  properties: { id: string; mode: string; color: string; bearing: number; icon: string; route: string };
+  properties: { id: string; mode: string; color: string; bearing: number; icon: string; route: string; routeId: string };
 }
 
 export interface VehicleCollection {
@@ -169,7 +169,8 @@ export function computeVehicles(routes: RouteGeometry[], nowSeconds: number): Ve
           color: route.color,
           bearing,
           icon: MODE_TO_ICON[route.mode] ?? 'veh-bus',
-          route: route.shortName
+          route: route.shortName,
+          routeId: route.id
         }
       });
     }

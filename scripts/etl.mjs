@@ -10,18 +10,22 @@
  *
  * A feed that fails validation never overwrites the last good bundle —
  * the failure is reported and the process continues with the others.
+ *
+ * National feeds: set feed.bbox {minLat,maxLat,minLng,maxLng} to keep only
+ * stops and routes serving that region (e.g. Oslo from Norway's national GTFS).
  */
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync, statSync } from 'node:fs';
+import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import path from 'node:path';
-import AdmZip from 'adm-zip';
 import { parse as csvParseSync } from 'csv-parse/sync';
 import { parse as csvParseStream } from 'csv-parse';
 import { FEEDS, DEFAULT_HEADWAY_MIN } from './feeds.config.mjs';
 import { simplifyShape } from './simplify.mjs';
-
+import { readZipText, extractZipEntry, entryExists } from './zipstream.mjs';
 import { fileURLToPath } from 'node:url';
+
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CACHE_DIR = path.join(ROOT, 'etl-cache');
 const OUT_DIR = path.join(ROOT, 'static', 'data');
@@ -50,15 +54,13 @@ const hashColor = (key) => {
 };
 
 async function download(url, dest) {
-  const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(600_000) });
+  const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(900_000) });
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status} for ${url}`);
   await pipeline(Readable.fromWeb(res.body), createWriteStream(dest));
 }
 
-function readTxt(zip, name) {
-  const entry = zip.getEntry(name) ?? zip.getEntry(`./${name}`);
-  if (!entry) return null;
-  return entry.getData().toString('utf8');
+function readTxt(zipPath, name) {
+  return readZipText(zipPath, name);
 }
 
 function parseCsv(text) {
@@ -72,23 +74,95 @@ function parseCsv(text) {
   });
 }
 
-async function countRoutesPerStop(zip, tripToRoute) {
-  const entry = zip.getEntry('stop_times.txt') ?? zip.getEntry('./stop_times.txt');
-  if (!entry) return new Map();
+/** Extract a zip entry to the cache dir without buffering the whole file; returns its path. */
+function extractEntry(zip, name) {
+  const entry = zip.getEntry(name) ?? zip.getEntry(`./${name}`);
+  if (!entry) return null;
+  const dest = path.join(CACHE_DIR, `${process.pid}-${entry.name.replace(/^\.\//, '')}`);
+  mkdirSync(path.dirname(dest), { recursive: true });
+  writeFileSync(dest, entry.getData());
+  return dest;
+}
+
+/** Streaming pass over stop_times.txt: routes served per stop + routes touching the bbox region. */
+async function countRoutesPerStop(zipPath, tripToRoute, bboxStopIds) {
   const counts = new Map(); // stop_id -> Set<route_id>
-  const parser = Readable.from(entry.getData()).pipe(
+  const regionalRoutes = new Set();
+  const tmpFile = path.join(CACHE_DIR, `${process.pid}-stop_times.csv`);
+  if (!(await extractZipEntry(zipPath, 'stop_times.txt', tmpFile))) {
+    return { counts, regionalRoutes };
+  }
+  const extracted = tmpFile;
+  const parser = createReadStream(extracted).pipe(
     csvParseStream({ columns: true, skip_empty_lines: true, bom: true, relax_quotes: true, relax_column_count: true })
   );
+  let rows = 0;
   for await (const row of parser) {
+    if ((++rows & 0x7fffff) === 0) console.log(`    …${(rows / 1e6).toFixed(1)}M stop_times rows`);
     if (!row.stop_id) continue;
+    if (bboxStopIds && !bboxStopIds.has(row.stop_id)) continue;
     const route = tripToRoute.get(row.trip_id);
     if (!route) continue;
+    regionalRoutes.add(route);
     let set = counts.get(row.stop_id);
     if (!set) counts.set(row.stop_id, (set = new Set()));
     if (set.size < 64) set.add(route);
   }
-  return counts;
+  try { unlinkSync(extracted); } catch { /* best effort */ }
+  return { counts, regionalRoutes };
 }
+
+/** Feed has no shapes.txt — derive per-route geometry from stop sequences (stop_times.txt). */
+async function shapesFromStopSequences(zipPath, tripToRoute, regionalRoutes, stopCoords, routeShapes) {
+  const tmp = path.join(CACHE_DIR, `${process.pid}-seq-stop_times.csv`);
+  if (!(await extractZipEntry(zipPath, 'stop_times.txt', tmp))) return new Map();
+  const stream = createReadStream(tmp).pipe(
+    csvParseStream({ columns: true, skip_empty_lines: true, bom: true, relax_quotes: true, relax_column_count: true })
+  );
+  const best = new Map(); // route_id -> polyline [[lng,lat],...] (longest representative trip)
+  let curTrip = null;
+  let curRoute = null;
+  let curStops = [];
+  const flush = () => {
+    if (curRoute && curStops.length >= 2) {
+      curStops.sort((a, b) => a.seq - b.seq);
+      const line = [];
+      for (const s of curStops) {
+        const c = stopCoords.get(s.stopId);
+        if (c) line.push(c);
+      }
+      if (line.length >= 2) {
+        const prev = best.get(curRoute);
+        if (!prev || line.length > prev.length) best.set(curRoute, line);
+      }
+    }
+    curStops = [];
+  };
+  for await (const row of stream) {
+    if (row.trip_id !== curTrip) {
+      flush();
+      curTrip = row.trip_id;
+      curRoute = tripToRoute.get(row.trip_id) ?? null;
+      curStops = [];
+    }
+    if (!curRoute || !regionalRoutes.has(curRoute)) continue;
+    const seq = Number(row.stop_sequence);
+    if (!Number.isFinite(seq)) continue;
+    curStops.push({ stopId: row.stop_id, seq });
+  }
+  flush();
+  try { unlinkSync(tmp); } catch { /* best effort */ }
+  const shapePts = new Map();
+  for (const [routeId, line] of best) {
+    const shapeId = `seq-${routeId}`;
+    shapePts.set(shapeId, line.map(([lon, lat], seq) => [lon, lat, seq]));
+    routeShapes.set(routeId, new Set([shapeId]));
+  }
+  return shapePts;
+}
+
+const inBBox = (bbox, lat, lon) =>
+  !bbox || (lat >= bbox.minLat && lat <= bbox.maxLat && lon >= bbox.minLng && lon <= bbox.maxLng);
 
 async function buildFeed(feed) {
   console.log(`\n▸ ${feed.name} (${feed.cityId})`);
@@ -104,16 +178,21 @@ async function buildFeed(feed) {
     console.log('  using cached', path.basename(zipPath));
   }
 
-  const zip = new AdmZip(zipPath);
+  const bbox = feed.bbox ?? null;
 
   // ── routes ───────────────────────────────────────────────────────────────
-  const routesCsv = readTxt(zip, 'routes.txt');
+  const routesCsv = await readTxt(zipPath, 'routes.txt');
   if (!routesCsv) throw new Error('routes.txt missing');
   const routeRows = parseCsv(routesCsv);
   const routes = new Map();
   for (const r of routeRows) {
     const mode = routeTypeToMode(r.route_type);
-    const color = /^[0-9a-fA-F]{6}$/.test(r.route_color ?? '') ? `#${r.route_color}` : hashColor(r.route_id);
+    const explicit = feed.routeColors?.[String(r.route_short_name ?? '').trim()];
+    const color = explicit
+      ? explicit
+      : /^[0-9a-fA-F]{6}$/.test(r.route_color ?? '')
+        ? `#${r.route_color}`
+        : hashColor(r.route_id);
     routes.set(r.route_id, {
       id: r.route_id,
       shortName: (r.route_short_name || r.route_long_name || r.route_id).trim(),
@@ -125,11 +204,12 @@ async function buildFeed(feed) {
   }
 
   // ── trips → route_id, shape_id ; frequencies → headway ───────────────────
-  const tripsCsv = readTxt(zip, 'trips.txt');
+  const tripsCsv = await readTxt(zipPath, 'trips.txt');
   if (!tripsCsv) throw new Error('trips.txt missing');
+  console.log('  parsing trips.txt…');
   const tripRows = parseCsv(tripsCsv);
   const tripToRoute = new Map();
-  const routeShapes = new Map(); // route_id -> Map(shape_id -> points count placeholder)
+  const routeShapes = new Map(); // route_id -> Set<shape_id>
   for (const t of tripRows) {
     if (!t.route_id || !routes.has(t.route_id)) continue;
     tripToRoute.set(t.trip_id, t.route_id);
@@ -139,7 +219,7 @@ async function buildFeed(feed) {
     }
   }
 
-  const freqCsv = readTxt(zip, 'frequencies.txt');
+  const freqCsv = await readTxt(zipPath, 'frequencies.txt');
   if (freqCsv) {
     const freqRows = parseCsv(freqCsv);
     const tripHeadway = new Map();
@@ -161,23 +241,80 @@ async function buildFeed(feed) {
     }
   }
 
-  // ── shapes: group, pick representative per route, simplify ───────────────
-  const shapesCsv = readTxt(zip, 'shapes.txt');
-  if (!shapesCsv) throw new Error('shapes.txt missing');
-  const shapeRows = parseCsv(shapesCsv);
-  const shapePts = new Map(); // shape_id -> [[lng,lat,seq],...]
-  for (const s of shapeRows) {
-    const lat = Number(s.shape_pt_lat);
-    const lon = Number(s.shape_pt_lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    let arr = shapePts.get(s.shape_id);
-    if (!arr) shapePts.set(s.shape_id, (arr = []));
-    arr.push([lon, lat, Number(s.shape_pt_sequence) || arr.length]);
+  // ── stops: bbox filter first (region feeds) ───────────────────────────────
+  const stopsCsv = await readTxt(zipPath, 'stops.txt');
+  if (!stopsCsv) throw new Error('stops.txt missing');
+  const stopRows = parseCsv(stopsCsv);
+  const regionalStopIds = new Set();
+  const stopCoords = new Map(); // stop_id -> [lng, lat] (all stops, for geometry fallback)
+  const candidateStops = [];
+  for (const s of stopRows) {
+    const lat = Number(s.stop_lat);
+    const lon = Number(s.stop_lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue; // parent stations without coords
+    const locationType = Number(s.location_type ?? 0);
+    if (locationType > 1) continue; // entrances/nodes/boarding areas not drawn
+    stopCoords.set(s.stop_id, [lon, lat]);
+    if (bbox && !inBBox(bbox, lat, lon)) continue;
+    regionalStopIds.add(s.stop_id);
+    candidateStops.push({
+      id: s.stop_id,
+      name: s.stop_name,
+      lat: +lat.toFixed(6),
+      lon: +lon.toFixed(6)
+    });
   }
-  for (const arr of shapePts.values()) arr.sort((a, b) => a[2] - b[2]);
+
+  // ── streaming stop_times: routes serving the region + per-stop served routes ─
+  console.log('  streaming stop_times.txt…');
+  const { counts: served, regionalRoutes } = await countRoutesPerStop(zipPath, tripToRoute, bbox ? regionalStopIds : null);
+  console.log(`  ${bbox ? regionalRoutes.size : tripToRoute.size} routes serve the region`);
+
+  // ── shapes: prefer shapes.txt; fall back to stop-sequence geometry ──────
+  const hasShapes = !!(await entryExists(zipPath, 'shapes.txt'));
+  let shapePts = new Map(); // shape_id -> [[lng,lat,seq],...]
+  if (hasShapes) {
+    console.log('  streaming shapes.txt…');
+    const shapeToRoute = new Map(); // shape_id -> route_id (from trips)
+    for (const t of tripRows) {
+      if (t.shape_id && t.route_id && !shapeToRoute.has(t.shape_id)) {
+        shapeToRoute.set(t.shape_id, t.route_id);
+      }
+    }
+    const shapeTmp = path.join(CACHE_DIR, `${process.pid}-shapes.csv`);
+    if (!(await extractZipEntry(zipPath, 'shapes.txt', shapeTmp))) throw new Error('shapes.txt missing');
+    const shapesStream = createReadStream(shapeTmp).pipe(
+      csvParseStream({ columns: true, skip_empty_lines: true, bom: true, relax_quotes: true, relax_column_count: true })
+    );
+    let shapeRowCount = 0;
+    for await (const s of shapesStream) {
+      if ((++shapeRowCount & 0x7fffff) === 0) {
+        console.log(`    …${(shapeRowCount / 1e6).toFixed(1)}M shape points, ${shapePts.size} shapes kept`);
+      }
+      const shapeId = s.shape_id;
+      if (!shapeId) continue;
+      const routeId = shapeToRoute.get(shapeId);
+      if (bbox) {
+        // keep only shapes for region-serving routes
+        if (!routeId || !regionalRoutes.has(routeId)) continue;
+      }
+      const lat = Number(s.shape_pt_lat);
+      const lon = Number(s.shape_pt_lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      let arr = shapePts.get(shapeId);
+      if (!arr) shapePts.set(shapeId, (arr = []));
+      arr.push([lon, lat, Number(s.shape_pt_sequence) || arr.length]);
+    }
+    try { unlinkSync(shapeTmp); } catch { /* best effort */ }
+    for (const arr of shapePts.values()) arr.sort((a, b) => a[2] - b[2]);
+  } else {
+    console.log('  no shapes.txt — deriving route geometry from stop sequences…');
+    shapePts = await shapesFromStopSequences(zipPath, tripToRoute, regionalRoutes, stopCoords, routeShapes);
+  }
 
   const outRoutes = [];
   for (const [routeId, route] of routes) {
+    if (bbox && !regionalRoutes.has(routeId)) continue;
     const shapeIds = routeShapes.get(routeId);
     if (!shapeIds?.size) continue;
     // Representative shape = one with the most points
@@ -193,29 +330,17 @@ async function buildFeed(feed) {
   }
   outRoutes.sort((a, b) => modeRank(a.mode) - modeRank(b.mode) || a.shortName.localeCompare(b.shortName));
 
-  // ── stops (+ interchange detection via streaming stop_times count) ───────
-  const stopsCsv = readTxt(zip, 'stops.txt');
-  if (!stopsCsv) throw new Error('stops.txt missing');
-  const stopRows = parseCsv(stopsCsv);
-  console.log('  counting served routes per stop (streaming stop_times.txt)…');
-  const served = await countRoutesPerStop(zip, tripToRoute);
-
+  // ── emit stops ───────────────────────────────────────────────────────────
   const outStops = [];
-  for (const s of stopRows) {
-    const lat = Number(s.stop_lat);
-    const lon = Number(s.stop_lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue; // e.g. parent stations without coords
-    const locationType = Number(s.location_type ?? 0);
-    if (locationType > 1) continue; // entrances/nodes/boarding areas not drawn
-    const routeSet = served.get(s.stop_id);
-    outStops.push({
-      id: s.stop_id,
-      name: s.stop_name,
-      lat: +lat.toFixed(6),
-      lon: +lon.toFixed(6),
-      modes: [],
-      interchange: (routeSet?.size ?? 0) >= 2
-    });
+  for (const s of candidateStops) {
+    const routeSet = served.get(s.id);
+    // Cross-mode connection (metro+bus, rail+tram…) — NOT just two bus lines
+    const modesAt = routeSet
+      ? new Set([...routeSet].map((rid) => routes.get(rid)?.mode).filter(Boolean))
+      : new Set();
+    // Major = interchange or serves at least one non-bus route (kept visible at all zooms)
+    const major = modesAt.size > 1 || [...modesAt].some((m) => m !== 'bus');
+    outStops.push({ ...s, modes: [...modesAt], interchange: modesAt.size >= 2, major });
   }
 
   const bundle = {

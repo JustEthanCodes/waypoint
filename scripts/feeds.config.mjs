@@ -23,27 +23,47 @@ export const FEEDS = [
     sourceUrl: 'https://www.mbta.com/developers'
   },
 
-  // ── Feeds requiring free registration (set env var, flip enabled: true) ──
+  // ── Region-filtered national feeds (no key required) ─────────────────────
   {
     cityId: 'oslo',
-    name: 'Entur — Norway (national)',
+    name: 'Oslo & Viken (Entur, national feed)',
     gtfsUrl: 'https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs-basic.zip',
-    license: 'NLOD (Norwegian License for Open Government Data)',
-    attribution: 'Entur AS, Norway',
+    license: 'NLOD — Norwegian License for Open Government Data',
+    attribution: 'Entur AS (Norway) — national GTFS basic aggregate, region-filtered to Oslo/Viken',
     sourceUrl: 'https://developer.entur.no/open-data/timetable',
-    enabled: false, // 100+ MB; enable once region filtering is in place
-    note: 'National aggregate; large download. Prefer regional Oslo feed when available.'
+    bbox: { minLat: 59.74, maxLat: 60.1, minLng: 10.35, maxLng: 11.15 }
   },
   {
     cityId: 'stockholm',
-    name: 'SL — Stockholm (via Trafiklab)',
-    gtfsUrl: null, // requires TRAFIKLAB_KEY: https://opendata.samtrafiken.se/gtfs/sl/sl.zip?key={KEY}
-    license: 'CC-BY 4.0 (Trafiklab / Samtrafiken)',
-    attribution: 'Trafikförvaltningen (SL), via Trafiklab',
-    sourceUrl: 'https://www.trafiklab.se/api/gtfs-datasets/gtfs-regional/',
-    enabled: false,
-    note: 'Set TRAFIKLAB_KEY and restore gtfsUrl to build.'
+    name: 'Stockholm (Trafiklab national feed, mirror)',
+    gtfsUrl: 'https://data.public-transport.earth/gtfs/se',
+    license: 'CC0 1.0 — public-transport.earth mirror of Trafiklab’s national GTFS',
+    attribution: 'Trafiklab / Samtrafiken (Sweden) — region-filtered to Stockholm',
+    sourceUrl: 'https://eu.data.public-transport.earth/',
+    bbox: { minLat: 59.17, maxLat: 59.58, minLng: 17.55, maxLng: 19.05 },
+    // Official T-bana colors: blue (T10/11), red (T13/14), green (T17/18/19)
+    routeColors: { '10': '#005cab', '11': '#005cab', '13': '#ee3124', '14': '#ee3124', '17': '#009249', '18': '#009249', '19': '#009249' }
   },
+  {
+    cityId: 'copenhagen',
+    name: 'Copenhagen (Din Offentlige Transport, mirror)',
+    gtfsUrl: 'https://data.public-transport.earth/gtfs/dk',
+    license: 'Din Offentlige Transport (see source) — national NAP feed, community mirror',
+    attribution: 'Rejseplanen A/S / Din Offentlige Transport (Denmark) — region-filtered to Copenhagen',
+    sourceUrl: 'https://eu.data.public-transport.earth/',
+    bbox: { minLat: 55.45, maxLat: 55.95, minLng: 12.0, maxLng: 13.0 }
+  },
+  {
+    cityId: 'berlin',
+    name: 'Berlin–Brandenburg (VBB)',
+    gtfsUrl: 'https://www.vbb.de/gtfs',
+    license: 'VBB open data — see vbb.de/gtfs',
+    attribution: 'Verkehrsverbund Berlin-Brandenburg (VBB) — region-filtered to Berlin',
+    sourceUrl: 'https://www.vbb.de/gtfs',
+    bbox: { minLat: 52.31, maxLat: 52.7, minLng: 13.08, maxLng: 13.75 }
+  },
+
+  // ── Feeds requiring free registration (set env var, flip enabled: true) ──
   {
     cityId: 'london',
     name: 'Greater London (TfL)',

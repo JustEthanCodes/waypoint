@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import maplibregl from '#lib/map';
   import type { Map as MlMap } from 'maplibre-gl';
   import { CITIES } from '#lib/cities';
   import { theme, basemapStyle } from '#lib/theme.svelte';
@@ -49,49 +48,11 @@
   }
 
   onMount(() => {
-    const style = basemapStyle(theme.resolved);
-    map = new maplibregl.Map({
-      container,
-      style,
-      center: [15, 32],
-      zoom: 1.45,
-      attributionControl: { compact: true },
-      maxPitch: 0
-    });
-
-    const applyGlobe = () => {
-      if (!map) return;
-      map.setProjection({ type: 'globe' });
-      map.setSky({
-        'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 10, 1],
-        'sky-color': theme.resolved === 'dark' ? '#05070a' : '#bcd6e8',
-        'horizon-color': theme.resolved === 'dark' ? '#1b2733' : '#dfeaf2',
-        'fog-color': theme.resolved === 'dark' ? '#121517' : '#f3eee3'
-      });
-    };
-    map.on('style.load', applyGlobe);
-    map.on('load', applyGlobe);
-
-    for (const city of CITIES) {
-      new maplibregl.Marker({ element: pinElement(city), anchor: 'bottom' })
-        .setLngLat([city.lon, city.lat])
-        .addTo(map);
-    }
-
-    // Slow ambient rotation (paused by interaction / reduced motion)
-    let interacting = false;
+    let disposed = false;
     let raf = 0;
-    const pauseFor = 6000;
+    let interacting = false;
     let pausedUntil = 0;
-    const onInteract = () => {
-      interacting = true;
-      pausedUntil = Date.now() + pauseFor;
-    };
-    map.on('mousedown', onInteract);
-    map.on('touchstart', onInteract);
-    map.on('wheel', onInteract);
-    map.on('mouseup', () => (interacting = false));
-    window.addEventListener('pointerup', () => (interacting = false));
+    let ro: ResizeObserver | undefined;
 
     const spin = () => {
       raf = requestAnimationFrame(spin);
@@ -100,22 +61,70 @@
       if (reducedMotion?.matches) return;
       map.setBearing(map.getBearing() + 0.018);
     };
-    spin();
 
-    const ro = new ResizeObserver(() => map?.resize());
-    ro.observe(container);
+    (async () => {
+      // Code-split MapLibre: only fetch the ~550 KB worker + library when the globe mounts
+      const maplibregl = (await import('#lib/map')).default;
+      if (disposed || !container) return;
+
+      map = new maplibregl.Map({
+        container,
+        style: basemapStyle(theme.resolved),
+        center: [15, 32],
+        zoom: 1.45,
+        attributionControl: { compact: true },
+        maxPitch: 0
+      });
+
+      const applyGlobe = () => {
+        if (!map) return;
+        map.setProjection({ type: 'globe' });
+        map.setSky({
+          'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 10, 1],
+          'sky-color': theme.resolved === 'dark' ? '#05070a' : '#bcd6e8',
+          'horizon-color': theme.resolved === 'dark' ? '#1b2733' : '#dfeaf2',
+          'fog-color': theme.resolved === 'dark' ? '#121517' : '#f3eee3'
+        });
+      };
+      map.on('style.load', applyGlobe);
+      map.on('load', applyGlobe);
+
+      for (const city of CITIES) {
+        new maplibregl.Marker({ element: pinElement(city), anchor: 'bottom' })
+          .setLngLat([city.lon, city.lat])
+          .addTo(map);
+      }
+
+      const onInteract = () => {
+        interacting = true;
+        pausedUntil = Date.now() + 6000;
+      };
+      map.on('mousedown', onInteract);
+      map.on('touchstart', onInteract);
+      map.on('wheel', onInteract);
+      map.on('mouseup', () => (interacting = false));
+      window.addEventListener('pointerup', () => (interacting = false));
+
+      ro = new ResizeObserver(() => map?.resize());
+      ro.observe(container);
+      spin();
+    })();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
-      ro.disconnect();
+      ro?.disconnect();
       map?.remove();
       map = undefined;
     };
   });
 
-  // Re-skin basemap when the theme flips
+  // Re-skin basemap when the theme flips (never on initial mount — the map already chose)
+  let lastStyle = theme.resolved;
   $effect(() => {
     const resolved = theme.resolved;
+    if (resolved === lastStyle) return;
+    lastStyle = resolved;
     if (map) map.setStyle(basemapStyle(resolved));
   });
 </script>

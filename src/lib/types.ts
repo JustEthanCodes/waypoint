@@ -20,6 +20,8 @@ export interface StopPoint {
   modes: ModeGroup[];
   /** True when the stop serves more than one line (drawn as interchange ring) */
   interchange: boolean;
+  /** True for interchanges and non-bus stops — used for map label/zoom thinning */
+  major?: boolean;
 }
 
 export interface CityBundle {

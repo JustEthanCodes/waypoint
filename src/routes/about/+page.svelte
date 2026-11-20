@@ -40,6 +40,10 @@
           <tbody>
             <tr class="border-t border-[var(--line)]"><td class="py-1.5">New York City</td><td><a class="underline" href="https://new.mta.info/developers/agency/new-york-city-transit" target="_blank" rel="noreferrer">MTA Subway GTFS</a></td><td>MTA Open Data</td></tr>
             <tr class="border-t border-[var(--line)]"><td class="py-1.5">Boston</td><td><a class="underline" href="https://www.mbta.com/developers" target="_blank" rel="noreferrer">MBTA GTFS</a></td><td>MBTA Open Data</td></tr>
+            <tr class="border-t border-[var(--line)]"><td class="py-1.5">Berlin</td><td><a class="underline" href="https://www.vbb.de/gtfs" target="_blank" rel="noreferrer">VBB GTFS (regional, region-filtered)</a></td><td>VBB open data (see source)</td></tr>
+            <tr class="border-t border-[var(--line)]"><td class="py-1.5">Oslo</td><td><a class="underline" href="https://developer.entur.no/open-data/timetable" target="_blank" rel="noreferrer">Entur national GTFS (region-filtered)</a></td><td>NLOD</td></tr>
+            <tr class="border-t border-[var(--line)]"><td class="py-1.5">Stockholm</td><td><a class="underline" href="https://eu.data.public-transport.earth/" target="_blank" rel="noreferrer">Trafiklab national GTFS (mirror, region-filtered)</a></td><td>CC0 1.0</td></tr>
+            <tr class="border-t border-[var(--line)]"><td class="py-1.5">Copenhagen</td><td><a class="underline" href="https://eu.data.public-transport.earth/" target="_blank" rel="noreferrer">Rejseplanen / DOT national GTFS (mirror, region-filtered)</a></td><td>See source</td></tr>
           </tbody>
         </table>
         <p class="mt-2 text-[0.75rem] text-[var(--muted)]">More cities join as their feeds pass validation — see the globe for the live roster. Feed data remains the property of its publishers.</p>

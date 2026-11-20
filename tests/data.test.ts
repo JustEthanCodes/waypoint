@@ -54,6 +54,7 @@ describe('bundled city data', () => {
           expect(Number.isFinite(s.lat)).toBe(true);
           expect(Number.isFinite(s.lon)).toBe(true);
           expect(typeof s.interchange).toBe('boolean');
+          expect(typeof s.major).toBe('boolean');
         }
       });
     });

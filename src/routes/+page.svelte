@@ -30,6 +30,31 @@
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
   let globeRef = $state<Globe | undefined>();
+  let searchInput = $state<HTMLInputElement | undefined>();
+
+  // Keyboard shortcuts: "/" focuses worldwide search, Escape backs out
+  $effect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+      if (e.key === '/' && !typing && view.kind === 'globe') {
+        e.preventDefault();
+        searchInput?.focus();
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (typing) {
+          (target as HTMLElement).blur();
+          return;
+        }
+        if (selectedStop) selectedStop = null;
+        else if (view.kind === 'stop') backToGlobe();
+        else if (view.kind === 'city') backToGlobe();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   // ── Worldwide stop search (Transitous) ───────────────────────────────
   let query = $state('');
@@ -125,6 +150,7 @@
             type="text"
             placeholder="Search any stop on Earth — try “T-Centralen”…"
             bind:value={query}
+            bind:this={searchInput}
             aria-label="Search any transit stop worldwide"
             autocomplete="off"
             spellcheck="false"

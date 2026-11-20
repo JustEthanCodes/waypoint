@@ -1,19 +1,47 @@
 {
-  "generatedAt": "2026-11-19T12:21:12.622Z",
+  "generatedAt": "2026-11-19T14:57:28.617Z",
   "cities": {
     "nyc-subway": {
       "cityId": "nyc-subway",
       "routes": 29,
       "stops": 493,
-      "bytes": 77283,
-      "generatedAt": "2026-11-19T12:19:51.092Z"
+      "bytes": 84503,
+      "generatedAt": "2026-11-19T14:57:28.617Z"
     },
     "boston": {
       "cityId": "boston",
       "routes": 371,
       "stops": 7618,
-      "bytes": 1230451,
-      "generatedAt": "2026-11-19T12:21:12.621Z"
+      "bytes": 1376272,
+      "generatedAt": "2026-11-19T14:57:28.617Z"
+    },
+    "berlin": {
+      "cityId": "berlin",
+      "routes": 536,
+      "stops": 11509,
+      "bytes": 2241833,
+      "generatedAt": "2026-11-19T14:57:28.617Z"
+    },
+    "stockholm": {
+      "cityId": "stockholm",
+      "routes": 1677,
+      "stops": 3921,
+      "bytes": 1129209,
+      "generatedAt": "2026-11-19T14:57:28.617Z"
+    },
+    "copenhagen": {
+      "cityId": "copenhagen",
+      "routes": 226,
+      "stops": 6018,
+      "bytes": 1191322,
+      "generatedAt": "2026-11-19T14:57:28.617Z"
+    },
+    "oslo": {
+      "cityId": "oslo",
+      "routes": 320,
+      "stops": 5794,
+      "bytes": 946800,
+      "generatedAt": "2026-11-19T14:57:28.617Z"
     }
   }
 }

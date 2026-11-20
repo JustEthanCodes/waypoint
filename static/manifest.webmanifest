@@ -1,0 +1,17 @@
+{
+  "name": "Waypoint — Every Transit System on Earth",
+  "short_name": "Waypoint",
+  "description": "A minimalist, Mini Metro-style map of every bus, train, metro, tram and ferry on Earth. Free and open source.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3eee3",
+  "theme_color": "#f3eee3",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

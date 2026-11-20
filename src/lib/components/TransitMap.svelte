@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import maplibregl from '#lib/map';
   import type { Map as MlMap, GeoJSONSource } from 'maplibre-gl';
   import { LoaderCircle, TriangleExclamationPoint } from '@lucide/svelte';
   import { theme, basemapStyle } from '#lib/theme.svelte';
@@ -29,6 +28,30 @@
 
   const MODES_ALL: ModeGroup[] = ['metro', 'rail', 'tram', 'bus', 'ferry', 'cable'];
   const selectedModes = $derived(modeFilter === 'all' ? MODES_ALL : [modeFilter as ModeGroup]);
+
+  /** Solo filter (line legend) — when set, only this route's geometry is fully visible. */
+  let soloRoute = $state<string | null>(null);
+
+  const LEGEND_GROUPS: { mode: ModeGroup; label: string }[] = [
+    { mode: 'metro', label: 'Metro' },
+    { mode: 'rail', label: 'Rail' },
+    { mode: 'tram', label: 'Tram' },
+    { mode: 'bus', label: 'Bus' },
+    { mode: 'ferry', label: 'Ferry' },
+    { mode: 'cable', label: 'Cable' }
+  ];
+  const legendGroups = $derived.by(() => {
+    const b = bundle;
+    if (!b) return [];
+    const groups: { label: string; routes: typeof b.routes }[] = [];
+    for (const g of LEGEND_GROUPS) {
+      const routes = b.routes
+        .filter((r) => r.mode === g.mode)
+        .sort((a, b2) => a.shortName.localeCompare(b2.shortName, undefined, { numeric: true }));
+      if (routes.length) groups.push({ label: g.label, routes });
+    }
+    return groups;
+  });
 
   const palette = $derived.by(() => {
     const dark = theme.resolved === 'dark';
@@ -76,7 +99,8 @@
         properties: {
           id: s.id,
           name: s.name,
-          interchange: s.interchange ? 1 : 0
+          interchange: s.interchange ? 1 : 0,
+          major: s.major || s.interchange ? 1 : 0
         }
       }))
     };
@@ -110,7 +134,7 @@
         paint: {
           'line-color': palette.casing,
           'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4.4, 13, 6.4, 16, 8.6],
-          'line-opacity': routeOpacityExpression(0.92)
+          'line-opacity': lineOpacity(0.92)
         }
       });
     }
@@ -123,18 +147,35 @@
         paint: {
           'line-color': ['get', 'color'],
           'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.9, 13, 3.4, 16, 4.6],
-          'line-opacity': routeOpacityExpression(0.96)
+          'line-opacity': lineOpacity(0.96)
         }
       });
     }
 
-    // Stops — regular then interchanges (rings)
+    // Stops — major (all zooms), minor bus-only (high zoom only), then interchange rings
+    if (!map.getLayer('wp-stops-minor')) {
+      map.addLayer({
+        id: 'wp-stops-minor',
+        type: 'circle',
+        source: 'wp-stops',
+        filter: ['all', ['==', ['get', 'interchange'], 0], ['==', ['get', 'major'], 0]],
+        minzoom: 13.5,
+        paint: {
+          'circle-color': palette.stopFill,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 1.1, 16, 2.4],
+          'circle-stroke-width': 0.7,
+          'circle-stroke-color': palette.stopRing,
+          'circle-opacity': 0.75,
+          'circle-stroke-opacity': 0.75
+        }
+      });
+    }
     if (!map.getLayer('wp-stops')) {
       map.addLayer({
         id: 'wp-stops',
         type: 'circle',
         source: 'wp-stops',
-        filter: ['==', ['get', 'interchange'], 0],
+        filter: ['all', ['==', ['get', 'interchange'], 0], ['==', ['get', 'major'], 1]],
         paint: {
           'circle-color': palette.stopFill,
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 1.6, 13, 2.6, 16, 4.2],
@@ -164,7 +205,7 @@
         id: 'wp-stops-labels',
         type: 'symbol',
         source: 'wp-stops',
-        filter: ['==', ['get', 'interchange'], 0],
+        filter: ['all', ['==', ['get', 'interchange'], 0], ['==', ['get', 'major'], 1]],
         minzoom: 12,
         layout: {
           'text-field': ['get', 'name'],
@@ -206,6 +247,20 @@
       });
     }
 
+    // Click affordance — generous transparent hit targets over every stop (dense maps are hard to click)
+    if (!map.getLayer('wp-stops-hit')) {
+      map.addLayer({
+        id: 'wp-stops-hit',
+        type: 'circle',
+        source: 'wp-stops',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 10, 12, 16, 16, 22],
+          'circle-opacity': 0,
+          'circle-stroke-opacity': 0
+        }
+      });
+    }
+
     // Vehicles — mode-accurate SDF glyphs
     if (!map.getLayer('wp-vehicles')) {
       map.addLayer({
@@ -230,21 +285,26 @@
       });
     }
 
-    map.setFilter('wp-vehicles', ['in', ['get', 'mode'], ['literal', selectedModes]]);
     styleReady = true;
+    applyModeVisibility();
   }
 
-  function routeOpacityExpression(full: number) {
-    return ['case', ['in', ['get', 'mode'], ['literal', selectedModes]], full, 0.06] as any;
+  function lineOpacity(full: number, dim = 0.06) {
+    if (soloRoute) return ['case', ['==', ['get', 'id'], soloRoute], full, dim] as any;
+    return ['case', ['in', ['get', 'mode'], ['literal', selectedModes]], full, dim] as any;
   }
 
   function applyModeVisibility() {
     if (!map || !styleReady) return;
-    const modes = selectedModes;
-    map.setPaintProperty('wp-routes-casing', 'line-opacity', ['case', ['in', ['get', 'mode'], ['literal', modes]], 0.92, 0.07]);
-    map.setPaintProperty('wp-routes-core', 'line-opacity', ['case', ['in', ['get', 'mode'], ['literal', modes]], 0.96, 0.07]);
+    map.setPaintProperty('wp-routes-casing', 'line-opacity', lineOpacity(0.92, 0.07));
+    map.setPaintProperty('wp-routes-core', 'line-opacity', lineOpacity(0.96, 0.07));
     if (map.getLayer('wp-vehicles')) {
-      map.setFilter('wp-vehicles', ['in', ['get', 'mode'], ['literal', modes]]);
+      map.setFilter(
+        'wp-vehicles',
+        soloRoute
+          ? ['==', ['get', 'routeId'], soloRoute]
+          : ['in', ['get', 'mode'], ['literal', selectedModes]]
+      );
     }
   }
 
@@ -266,6 +326,8 @@
     let disposed = false;
     (async () => {
       await loadBundle();
+      if (disposed || !container) return;
+      const maplibregl = (await import('#lib/map')).default;
       if (disposed || !container) return;
       map = new maplibregl.Map({
         container,
@@ -294,7 +356,7 @@
       });
 
       const onMapClick = (e: any) => {
-        const hits = map?.queryRenderedFeatures(e.point, { layers: ['wp-stops', 'wp-stops-interchange'] }) ?? [];
+        const hits = map?.queryRenderedFeatures(e.point, { layers: ['wp-stops-hit'] }) ?? [];
         if (hits.length === 0) {
           onSelectStop(null);
           return;
@@ -306,7 +368,7 @@
       map.on('click', onMapClick);
       map.on('mousemove', (e) => {
         if (!map) return;
-        const hits = map.queryRenderedFeatures(e.point, { layers: ['wp-stops', 'wp-stops-interchange'] });
+        const hits = map.queryRenderedFeatures(e.point, { layers: ['wp-stops-hit'] });
         map.getCanvas().style.cursor = hits.length ? 'pointer' : '';
       });
     })();
@@ -319,9 +381,10 @@
     };
   });
 
-  // Mode filter changed → re-tint lines / re-filter vehicles
+  // Mode filter or solo selection changed → re-tint lines / re-filter vehicles
   $effect(() => {
     void modeFilter;
+    void soloRoute;
     applyModeVisibility();
   });
 
@@ -332,9 +395,12 @@
     }
   });
 
-  // Theme flip → swap basemap, layers re-added on style.load
+  // Theme flip → swap basemap (never on mount — map already chose), layers re-added on style.load
+  let lastStyle = theme.resolved;
   $effect(() => {
     const resolved = theme.resolved;
+    if (resolved === lastStyle) return;
+    lastStyle = resolved;
     if (map) {
       styleReady = false;
       map.setStyle(basemapStyle(resolved));
@@ -343,6 +409,35 @@
 </script>
 
 <div class="map-canvas" bind:this={container} role="application" aria-label="Transit map of {city.name}"></div>
+
+{#if bundle && bundle.routes.length > 3}
+  <nav class="line-legend nice-scroll" aria-label="Lines">
+    <div class="line-legend-head">
+      <h3>Lines · {bundle.routes.length}</h3>
+      {#if soloRoute}
+        <button class="solo-reset" onclick={() => (soloRoute = null)}>Reset ×</button>
+      {/if}
+    </div>
+    {#each legendGroups as group (group.label)}
+      <section class="legend-group">
+        <div class="legend-group-label">{group.label} · {group.routes.length}</div>
+        <div class="legend-chips">
+          {#each group.routes as r (r.id)}
+            <button
+              class="legend-chip"
+              style="--dot:{r.color}"
+              aria-pressed={soloRoute === r.id}
+              title="{r.longName || r.shortName} — solo this line"
+              onclick={() => (soloRoute = soloRoute === r.id ? null : r.id)}
+            >
+              <span class="dot"></span><span class="name">{r.shortName}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/each}
+  </nav>
+{/if}
 
 {#if loadError}
   <div class="overlay overlay-bottom-left glass flex items-center gap-3 p-3">
