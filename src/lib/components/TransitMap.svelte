@@ -292,7 +292,7 @@
         },
         paint: {
           'icon-color': ['get', 'color'],
-          'icon-halo-color': palette.casing,
+          'icon-halo-color': ['get', 'halo'],
           'icon-halo-width': 1.5,
           'icon-opacity': 0.97
         }

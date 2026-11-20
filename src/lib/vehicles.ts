@@ -2,6 +2,10 @@
  * Vehicle rendering + simulation for the Mini Metro map.
  * Positions are *estimated from scheduled service* (shape + headway),
  * not live GPS — labelled as such in the UI.
+ *
+ * Glyphs are simple geometric shapes so each mode is instantly distinct
+ * at small sizes: metro = rounded square, rail = circle, tram = diamond,
+ * bus = rectangle, ferry = oval, cable = small circle.
  */
 import type { Map as MlMap } from 'maplibre-gl';
 import { MODE_SPEED, pointAtDistance, polylineLength, routePhase } from './geo';
@@ -11,74 +15,48 @@ const ICON_SIZE = 64;
 
 type IconPainter = (ctx: CanvasRenderingContext2D) => void;
 
-function paintBus(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = '#fff';
-  roundRect(ctx, 17, 5, 30, 54, 12); ctx.fill();
-  cut(ctx, () => {
-    roundRect(ctx, 21, 12, 22, 8, 3); ctx.fill();   // windshield
-    roundRect(ctx, 21, 46, 22, 5, 2); ctx.fill();   // rear window
-  });
-}
-
 function paintMetro(ctx: CanvasRenderingContext2D) {
-  // Boxy car: flat top, squared ends, wide windshield band — reads as "metro car"
+  // Rounded square — distinct from bus's sharp rectangle
   ctx.fillStyle = '#fff';
-  roundRect(ctx, 14, 2, 36, 60, 6); ctx.fill();
-  cut(ctx, () => {
-    roundRect(ctx, 18, 7, 28, 7, 3); ctx.fill();    // wide windshield band
-    roundRect(ctx, 18, 20, 28, 3, 1); ctx.fill();   // door stripe
-    roundRect(ctx, 18, 34, 28, 3, 1); ctx.fill();   // door stripe
-    roundRect(ctx, 18, 48, 28, 4, 2); ctx.fill();   // rear window
-  });
+  roundRect(ctx, 12, 12, 40, 40, 8); ctx.fill();
 }
 
 function paintRail(ctx: CanvasRenderingContext2D) {
-  // Elongated with a pronounced tapered nose — reads as "train"
+  // Circle — filled with the line colour, black outline via halo
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.moveTo(32, 1); ctx.lineTo(46, 16); ctx.lineTo(46, 58);
-  ctx.lineTo(42, 62); ctx.lineTo(22, 62); ctx.lineTo(18, 58);
-  ctx.lineTo(18, 16); ctx.closePath(); ctx.fill();
-  cut(ctx, () => {
-    roundRect(ctx, 24, 18, 16, 5, 2); ctx.fill();   // nose window
-    roundRect(ctx, 22, 30, 20, 4, 2); ctx.fill();   // side window 1
-    roundRect(ctx, 22, 40, 20, 4, 2); ctx.fill();   // side window 2
-    roundRect(ctx, 22, 52, 20, 4, 2); ctx.fill();   // rear window
-  });
+  ctx.arc(32, 32, 26, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function paintTram(ctx: CanvasRenderingContext2D) {
-  // Narrower body + prominent diamond pantograph on top — reads as "tram"
+  // 45° rotated square (diamond)
   ctx.fillStyle = '#fff';
-  roundRect(ctx, 20, 8, 24, 50, 9); ctx.fill();
-  cut(ctx, () => {
-    roundRect(ctx, 24, 14, 16, 6, 3); ctx.fill();   // windshield
-    roundRect(ctx, 24, 44, 16, 5, 2); ctx.fill();   // rear window
-  });
-  // Pantograph arm + diamond drawn on top (solid, no cutout into body)
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(29, 0, 6, 9);
   ctx.beginPath();
-  ctx.moveTo(32, 0); ctx.lineTo(38, 5); ctx.lineTo(32, 10); ctx.lineTo(26, 5);
+  ctx.moveTo(32, 4); ctx.lineTo(60, 32); ctx.lineTo(32, 60); ctx.lineTo(4, 32);
   ctx.closePath(); ctx.fill();
+}
+
+function paintBus(ctx: CanvasRenderingContext2D) {
+  // Sharp rectangle
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(10, 14, 44, 36);
 }
 
 function paintFerry(ctx: CanvasRenderingContext2D) {
+  // Oval
   ctx.fillStyle = '#fff';
-  ctx.beginPath();                                   // pointed bow up, flat stern
-  ctx.moveTo(32, 2); ctx.lineTo(48, 20); ctx.lineTo(46, 58); ctx.lineTo(18, 58); ctx.lineTo(16, 20);
-  ctx.closePath(); ctx.fill();
-  cut(ctx, () => {
-    roundRect(ctx, 24, 26, 16, 26, 2); ctx.fill();   // deck house
-  });
+  ctx.beginPath();
+  ctx.ellipse(32, 32, 28, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function paintCable(ctx: CanvasRenderingContext2D) {
+  // Small circle
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.moveTo(32, 4); ctx.lineTo(50, 22); ctx.lineTo(50, 42); ctx.lineTo(32, 60); ctx.lineTo(14, 42); ctx.lineTo(14, 22);
-  ctx.closePath(); ctx.fill();
-  cut(ctx, () => { ctx.beginPath(); ctx.moveTo(32, 22); ctx.lineTo(40, 30); ctx.lineTo(32, 38); ctx.lineTo(24, 30); ctx.closePath(); ctx.fill(); });
+  ctx.arc(32, 32, 14, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 export const VEHICLE_ICONS: Record<string, IconPainter> = {
@@ -97,6 +75,16 @@ export const MODE_TO_ICON: Record<string, string> = {
   bus: 'veh-bus',
   ferry: 'veh-ferry',
   cable: 'veh-cable'
+};
+
+/** Halo (outline) colour per mode — trains get a black ring as requested. */
+export const MODE_HALO: Record<string, string> = {
+  metro: 'rgba(255,255,255,0.9)',
+  rail: '#000000',
+  tram: 'rgba(255,255,255,0.9)',
+  bus: 'rgba(255,255,255,0.9)',
+  ferry: 'rgba(255,255,255,0.9)',
+  cable: 'rgba(255,255,255,0.9)'
 };
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -130,7 +118,7 @@ export function registerVehicleIcons(map: MlMap) {
 export interface VehicleFeature {
   type: 'Feature';
   geometry: { type: 'Point'; coordinates: [number, number] };
-  properties: { id: string; mode: string; color: string; bearing: number; icon: string; route: string; routeId: string };
+  properties: { id: string; mode: string; color: string; bearing: number; icon: string; route: string; routeId: string; halo: string };
 }
 
 export interface VehicleCollection {
@@ -178,7 +166,8 @@ export function computeVehicles(routes: RouteGeometry[], nowSeconds: number): Ve
           bearing,
           icon: MODE_TO_ICON[route.mode] ?? 'veh-bus',
           route: route.shortName,
-          routeId: route.id
+          routeId: route.id,
+          halo: MODE_HALO[route.mode] ?? 'rgba(255,255,255,0.9)'
         }
       });
     }
