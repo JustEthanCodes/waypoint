@@ -7,10 +7,12 @@
 
   let {
     onPickCity,
-    onPlannedCity
+    onPlannedCity,
+    route = null
   }: {
     onPickCity: (city: City) => void;
     onPlannedCity: (city: City) => void;
+    route?: any;
   } = $props();
 
   let container: HTMLDivElement;
@@ -44,6 +46,36 @@
       map.flyTo({ center: [city.lon, city.lat], zoom: 5.2, duration: 2400, essential: true });
       // Safety net in case moveend never fires
       setTimeout(done, 3000);
+    });
+  }
+
+  function applyRoute() {
+    if (!map) return;
+    const src = map.getSource('wp-route') as any;
+    if (src) {
+      src.setData(route ?? { type: 'FeatureCollection', features: [] });
+      const visible = !!(route && route.features && route.features.length);
+      if (map.getLayer('wp-route-walk')) map.setLayoutProperty('wp-route-walk', 'visibility', visible ? 'visible' : 'none');
+      if (map.getLayer('wp-route-transit')) map.setLayoutProperty('wp-route-transit', 'visibility', visible ? 'visible' : 'none');
+      return;
+    }
+    if (!route || !route.features || !route.features.length) return;
+    map.addSource('wp-route', { type: 'geojson', data: route });
+    map.addLayer({
+      id: 'wp-route-walk',
+      type: 'line',
+      source: 'wp-route',
+      filter: ['==', ['get', 'mode'], 'WALK'],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#8a8779', 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.85 }
+    });
+    map.addLayer({
+      id: 'wp-route-transit',
+      type: 'line',
+      source: 'wp-route',
+      filter: ['!=', ['get', 'mode'], 'WALK'],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.95 }
     });
   }
 
@@ -86,7 +118,7 @@
           'fog-color': theme.resolved === 'dark' ? '#121517' : '#f3eee3'
         });
       };
-      map.on('style.load', applyGlobe);
+      map.on('style.load', () => { applyGlobe(); applyRoute(); });
       map.on('load', applyGlobe);
 
       for (const city of CITIES) {
@@ -117,6 +149,12 @@
       map?.remove();
       map = undefined;
     };
+  });
+
+  // Apply route overlay when it changes
+  $effect(() => {
+    void route;
+    applyRoute();
   });
 
   // Re-skin basemap when the theme flips (never on initial mount — the map already chose)

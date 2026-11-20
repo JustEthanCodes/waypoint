@@ -269,7 +269,7 @@
         source: 'wp-vehicles',
         layout: {
           'icon-image': ['get', 'icon'],
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.32, 12, 0.5, 16, 0.72],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.4, 12, 0.6, 16, 0.85],
           'icon-rotate': ['get', 'bearing'],
           'icon-rotation-alignment': 'map',
           'icon-pitch-alignment': 'map',
@@ -289,15 +289,15 @@
     applyModeVisibility();
   }
 
-  function lineOpacity(full: number, dim = 0.06) {
+  function lineOpacity(full: number, dim = 0) {
     if (soloRoute) return ['case', ['==', ['get', 'id'], soloRoute], full, dim] as any;
     return ['case', ['in', ['get', 'mode'], ['literal', selectedModes]], full, dim] as any;
   }
 
   function applyModeVisibility() {
     if (!map || !styleReady) return;
-    map.setPaintProperty('wp-routes-casing', 'line-opacity', lineOpacity(0.92, 0.07));
-    map.setPaintProperty('wp-routes-core', 'line-opacity', lineOpacity(0.96, 0.07));
+    map.setPaintProperty('wp-routes-casing', 'line-opacity', lineOpacity(0.92, 0));
+    map.setPaintProperty('wp-routes-core', 'line-opacity', lineOpacity(0.96, 0));
     if (map.getLayer('wp-vehicles')) {
       map.setFilter(
         'wp-vehicles',
@@ -319,7 +319,7 @@
   function startVehicleLoop() {
     clearInterval(vehicleTimer);
     tickVehicles();
-    vehicleTimer = setInterval(tickVehicles, 450);
+    vehicleTimer = setInterval(tickVehicles, 300);
   }
 
   onMount(() => {

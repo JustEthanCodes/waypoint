@@ -340,11 +340,11 @@ async function buildFeed(feed) {
       if (pts && (!best || pts.length > best.length)) best = pts;
     }
     if (!best || best.length < 2) continue;
-    const simplified = simplifyShape(best.map(([lng, lat]) => [lng, lat]), 22, 400);
+    const simplified = simplifyShape(best!.map(([lng, lat]) => [lng, lat]), 22, 400);
     if (simplified.length < 2) continue;
-    if (bbox && feed.routeBboxFilter && best.length >= 2) {
-      const totalLen = haversineLength(best);
-      const inCount = best.filter(([lng, lat]) => inBBox(bbox, lat, lng)).length;
+    if (bbox && feed.routeBboxFilter && best!.length >= 2) {
+      const totalLen = haversineLength(best!);
+      const inCount = best!.filter(([lng, lat]) => inBBox(bbox, lat, lng)).length;
       const share = inCount / best.length;
       if (totalLen > feed.routeBboxFilter.maxKm * 1000 && share < feed.routeBboxFilter.minShare) continue;
     }
